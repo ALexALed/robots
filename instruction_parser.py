@@ -16,7 +16,7 @@ ROBOT_GRAMMAR = """
     turn_expr: "turn" TURN_DIRECTION
     go_expr: "go" DIRECTION? BLOCKS_NUMBER "blocks"
     go_until_expr: "go until you reach landmark" LANDMARK_NAME
-    
+
     TURN_DIRECTION: ("left" | "right")
     LANDMARK_NAME: /"[^"]*"/
     BLOCKS_NUMBER: ("0".."9")+
@@ -27,55 +27,54 @@ ROBOT_GRAMMAR = """
     %ignore WS
 """
 
+
 class RobotTransformer(Transformer):
-    def start_expr(self, args):
-        x, y = args[0], args[1]
+    def start_expr(self, expr_args):
+        x, y = int(expr_args[0].value), int(expr_args[1].value)
         self._current_direction = 'north'
         self._route = Route(start_point=(x, y))
 
-    def turn_expr(self, args):
-        direction = args[0]
-        self._current_direction = direction
+    def turn_expr(self, expr_args):
+        direction = expr_args[0].value
 
-    def go_expr(self, args):
-        if len(args) == 1:
+        directions = ["north", "east", "south", "west"]
+        current_index = directions.index(self._current_direction)
+        shift_value = -1 if direction == 'left' else 1
+        desired = current_index + shift_value
+
+        # direction calculated from desired turn type
+        self._current_direction = directions[desired if desired <= 3 else 0]
+
+    def go_expr(self, expr_args):
+        if len(expr_args) == 1:
             direction = self._current_direction
-            block_numbers = args[0]
+            block_numbers = int(expr_args[0].value)
         else:
-            direction = args[0]
-            block_numbers = args[1]
+            direction = expr_args[0].value
+            block_numbers = int(expr_args[1].value)
+            self._current_direction = direction
 
-        direction = 'x' if direction in {'west', 'east'} else 'y'
-        self._route.add_step(direction, block_numbers)
+        # need to map cardinal direction to coordinates direction
+        coord_direction = 'x' if direction in {'west', 'east'} else 'y'
+        steps = (
+            -block_numbers if direction in {'south', 'west'} else block_numbers
+        )
+        self._route.move_in_direction(coord_direction, steps)
 
-    def go_until_expr(self, args):
-        landmark = args[0]
-        CityMap.get_landmark_by_name
-
-
+    def go_until_expr(self, expr_args):
+        landmark = expr_args[0].value
+        x, y = CityMap.get_landmark_coordinates_by_name(landmark)
+        if x and y:
+            self._route.move_to_point(x, y)
 
 
 parser = Lark(ROBOT_GRAMMAR, parser='lalr', transformer=RobotTransformer())
 
-def run_robot(instructions):
+
+def create_route(instructions):
     try:
         parser.parse(instructions)
         return True
     except UnexpectedCharacters:
         logger.error('Failed parse instructions')
         return False
-
-def main():
-    code = """
-    start at (245, 161)
-    go north 5 blocks
-    turn right
-    go until you reach landmark "Statue of Old Man with Large Hat"
-    go west 25 blocks
-    turn left
-    got 3 blocks
-    """
-    run_robot(code)
-
-if __name__ == '__main__':
-    main()

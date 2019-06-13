@@ -1,6 +1,11 @@
 class Robot:
-    def __init__(self):
-        self.default_direction = 'north'
+    def __init__(self, name):
+        self.name = name
 
-    def move(self, x, y):
-        
+    def follow_route(self, route):
+        steps_done = []
+
+        for step in route.steps:
+            steps_done.append((step.x, step.y))
+
+        return steps_done

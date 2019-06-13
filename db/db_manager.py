@@ -1,35 +1,45 @@
+import os
 import peewee
 import datetime
 
+TEST_RUN = False
 
-db = peewee.SqliteDatabase('my_database.db')
+
+def get_db_name():
+    return 'database.db' if not TEST_RUN else 'test_database.db'
 
 
 def init_db():
+    db = peewee.SqliteDatabase(get_db_name())
     db.connect()
-    db.create_tables([Route, RouteSteps])
+    db.create_tables([RouteModel, RouteStepsModel])
 
+
+def remove_db():
+    os.remove(get_db_name())
 
 
 class BaseModel(peewee.Model):
     class Meta:
-        database = db
+        database = peewee.SqliteDatabase(get_db_name())
 
 
-class Route(BaseModel):    
-    name = peewee.TextField()
+class RouteModel(BaseModel):
     created_date = peewee.DateTimeField(default=datetime.datetime.now)
 
     @classmethod
-    def save_route(name, steps):
-        route = Route.create(
-            name=name
+    def save_route(cls):
+        return RouteModel.create()
+
+    def save_step(self, x, y):
+        RouteStepsModel.create(
+            route=self,
+            x=x,
+            y=y,
         )
-        
 
 
-class RouteSteps(BaseModel):
-    route = peewee.ForeignKeyField(Route, backref='steps')
-    step_number = peewee.IntegerField()
+class RouteStepsModel(BaseModel):
+    route = peewee.ForeignKeyField(RouteModel, backref='steps')
     x = peewee.IntegerField()
     y = peewee.IntegerField()
